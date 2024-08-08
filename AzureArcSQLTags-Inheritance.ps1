@@ -31,7 +31,7 @@ $query = "resources
 | extend complianceStatus = case(
     isnull(sqlInstanceTagCentroDeCusto) or isnull(hybridMachineTagCentroDeCusto), 'Não Conformidade',  // Se qualquer tag for nula, está em não conformidade
     tagsDiffer, 'Não Conformidade',  // Se as tags forem diferentes, está em não conformidade
-    'Conformidade'  // Caso contrário, está em conformidade
+    'Em Conformidade'  // Caso contrário, está em conformidade
 )
 | project 
     ['Azure Arc VM Source Name'] = hybridMachineName,  // Nome da máquina híbrida
