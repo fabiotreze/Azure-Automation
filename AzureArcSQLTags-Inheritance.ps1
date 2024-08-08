@@ -1,14 +1,24 @@
 # Requirements 
 # Install modules most recent: Az.Accounts and Az.ResourceGraph latest version
 
+# Define the parameters to be required at runtime
+param (
+    [Parameter(Mandatory=$true)]
+    [string]$ResourceGroupName,  # Nome do Resource Group
+
+    [Parameter(Mandatory=$true)]
+    [string]$Subscription  # Nome da Subscrição
+)
+
 # Ensures you do not inherit an AzContext in your runbook
 Disable-AzContextAutosave -Scope Process | Out-Null
 
 try {
     # Connect to Azure with user-assigned managed identity
-    $AzureContext = (Connect-AzAccount -Identity -AccountId SEUID).context
-    # set and store context
-    $AzureContext = Set-AzContext -SubscriptionName $AzureContext.Subscription -DefaultProfile $AzureContext
+    $AzureContext = (Connect-AzAccount -Identity -AccountId SeuID).context
+    
+    # Set and store context with the specified subscription
+    $AzureContext = Set-AzContext -SubscriptionName $Subscription -DefaultProfile $AzureContext
 }
 catch {
     Write-Error -Message $_.Exception
@@ -19,6 +29,7 @@ catch {
 $query = @"
 resources
 | where type =~ 'Microsoft.AzureArcData/SqlServerInstances'
+| where resourceGroup == '$ResourceGroupName'  // Filtra pelo Resource Group
 | extend subscriptionId = subscriptionId, 
          arcInstanceContainerId = tostring(split(properties['containerResourceId'], '/')[8])  // Captura o containerResourceId do recurso Arc
 | join kind=inner (
@@ -54,15 +65,15 @@ $projectedResult = $result | Select-Object 'Azure Arc VM Source Name', 'Azure Ar
 # Filter the projected result based on Compliance Status
 $filteredResult = $projectedResult | Where-Object { $_.'Compliance Status' -eq 'Nao Conformidade' }
 
-Write-Output "Recursos em Nao Conformidade:"
+Write-Output "Recursos em Nao Conformidade"
 $filteredResult
 
-# Check if the project result is empty
+# Check if the filtered result is empty
 if ($filteredResult.Count -eq 0) {
     Write-Output "No results found in the query."
 }
 else {
-    # Loop for resources to add tags
+    # Loop through resources to add tags
     foreach ($resource in $filteredResult) {
         $id = $resource.'SQL Instance ID'
         $arcVMName = $resource.'Azure Arc VM Source Name'
@@ -77,9 +88,8 @@ else {
             # Apply the tag to the SQL instance
             Update-AzTag -Tag $tag -ResourceId $id -Operation Merge -Verbose
             
-            # Output the resource that was modified
-            Write-Output "Tag applied to SQL Instance: $($resource.'SQL Instance') with ID: $id"
-            Write-Output "Tag 'centro_de_custo' with value '$arcVMTagValue' was applied from Azure Arc VM: $arcVMName"
+            # Output the modified resource information
+            Write-Output "Resource modified: SQL Instance ID: $id, Tag: centro_de_custo = $arcVMTagValue"
         }
         else {
             Write-Output "Incomplete values to create the tag. ID: $id, Tag Name: $arcVMName, Tag Value: $arcVMTagValue"
