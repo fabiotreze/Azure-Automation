@@ -6,7 +6,7 @@ Disable-AzContextAutosave -Scope Process | Out-Null
 
 try {
     # Connect to Azure with user-assigned managed identity
-    $AzureContext = (Connect-AzAccount -Identity -AccountId 35926e21-931f-45f6-bbb0-e0f94f1e0eeb).context
+    $AzureContext = (Connect-AzAccount -Identity -AccountId SEUID).context
     # set and store context
     $AzureContext = Set-AzContext -SubscriptionName $AzureContext.Subscription -DefaultProfile $AzureContext
 }
@@ -54,7 +54,7 @@ $projectedResult = $result | Select-Object 'Azure Arc VM Source Name', 'Azure Ar
 # Filter the projected result based on Compliance Status
 $filteredResult = $projectedResult | Where-Object { $_.'Compliance Status' -eq 'Nao Conformidade' }
 
-Write-Output "Recursos em Nao Conformidade"
+Write-Output "Recursos em Nao Conformidade:"
 $filteredResult
 
 # Check if the project result is empty
@@ -76,6 +76,10 @@ else {
             }
             # Apply the tag to the SQL instance
             Update-AzTag -Tag $tag -ResourceId $id -Operation Merge -Verbose
+            
+            # Output the resource that was modified
+            Write-Output "Tag applied to SQL Instance: $($resource.'SQL Instance') with ID: $id"
+            Write-Output "Tag 'centro_de_custo' with value '$arcVMTagValue' was applied from Azure Arc VM: $arcVMName"
         }
         else {
             Write-Output "Incomplete values to create the tag. ID: $id, Tag Name: $arcVMName, Tag Value: $arcVMTagValue"
