@@ -33,10 +33,11 @@ $query = "resources
     tagsDiffer, 'Não Conformidade',  // Se as tags forem diferentes, está em não conformidade
     'Em Conformidade'  // Caso contrário, está em conformidade
 )
+| where complianceStatus == 'Não Conformidade' // Filtra para mostrar apenas recursos em não conformidade
 | project 
     ['Azure Arc VM Source Name'] = hybridMachineName,  // Nome da máquina híbrida
     ['Azure Arc VM Source Name Tag centro_de_custo'] = hybridMachineTagCentroDeCusto, // Azure Arc VM Source Name Tag centro_de_custo
-    ['SQL Instance ID'] = ['id'], // SQL Instance ID
+    ['SQL Instance ID'] = id, // SQL Instance ID
     ['SQL Instance'] = name,  // Nome do SQL Server e SQL Instance
     ['SQL Instance Tag centro_de_custo'] = sqlInstanceTagCentroDeCusto, // SQL Instance Tag centro_de_custo
     ['Azure Arc VM Source Name by SQL Instance'] = arcInstanceContainerId,  // ID do container associado ao recurso Arc
