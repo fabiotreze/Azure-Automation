@@ -18,7 +18,7 @@ Disable-AzContextAutosave -Scope Process | Out-Null
 
 try {
     # Connect to Azure with user-assigned managed identity
-    $AzureContext = (Connect-AzAccount -Identity -AccountId ReplaceWithYourID).context
+    $AzureContext = (Connect-AzAccount -Identity -AccountId b50f3fb3-bbbd-40b0-9c04-a2f4694102d7).context
     
     # Set and store context with the specified subscription
     $AzureContext = Set-AzContext -SubscriptionName $SubscriptionID -DefaultProfile $AzureContext
@@ -32,28 +32,28 @@ catch {
 $query = @"
 resources
 | where type =~ 'Microsoft.AzureArcData/SqlServerInstances'
-| where resourceGroup == '$ResourceGroupName'  // Filter by Resource Group
+| where resourceGroup == '$ResourceGroupName' // Filter by Resource Group
 | extend subscriptionId = subscriptionId, 
          arcInstanceContainerId = tostring(split(properties['containerResourceId'], '/')[8])  // Capture containerResourceId of Arc resource
 | join kind=inner (
     resources
     | where type =~ 'Microsoft.HybridCompute/machines'
     | extend hybridMachineName = name,  // Capture the hybrid machine name
-             hybridMachineTagCentroDeCusto = coalesce(tags['$tagName'], '') // Capture the centro_de_custo tag of the hybrid machine, handling nulls
+             hybridMachineTag = coalesce(tags['$tagName'], '') // Capture the tag of the hybrid machine, handling nulls
 ) on `$left.arcInstanceContainerId == `$right.hybridMachineName and `$left.subscriptionId == `$right.subscriptionId
-| extend sqlInstanceTagCentroDeCusto = coalesce(tags['$tagName'], '') // Capture the centro_de_custo tag of the SQL Instance, handling nulls
-| extend tagsDiffer = sqlInstanceTagCentroDeCusto != hybridMachineTagCentroDeCusto // Add a field to indicate if the tags differ
+| extend sqlInstanceTag = coalesce(tags['$tagName'], '') // Capture the tag of the SQL Instance, handling nulls
+| extend tagsDiffer = sqlInstanceTag != hybridMachineTag // Add a field to indicate if the tags differ
 | extend complianceStatus = case(
-    isnull(sqlInstanceTagCentroDeCusto) or isnull(hybridMachineTagCentroDeCusto), 'Nao Conformidade',  // If any tag is null, it's non-compliant
+    isnull(sqlInstanceTag) or isnull(hybridMachineTag), 'Nao Conformidade',  // If any tag is null, it's non-compliant
     tagsDiffer, 'Nao Conformidade',  // If the tags differ, it's non-compliant
     'Em Conformidade'  // Otherwise, it's compliant
 )
 | project 
     ['Azure Arc VM Source Name'] = hybridMachineName,  // Hybrid machine name
-    ['Azure Arc VM Source Name Tag centro_de_custo'] = hybridMachineTagCentroDeCusto, // Azure Arc VM Source Name Tag centro_de_custo
+    ['Azure Arc VM Source Name Tag'] = hybridMachineTag, // Azure Arc VM Source Name Tag
     ['SQL Instance ID'] = id, // SQL Instance ID
     ['SQL Instance'] = name,  // SQL Server and SQL Instance name
-    ['SQL Instance Tag centro_de_custo'] = sqlInstanceTagCentroDeCusto, // SQL Instance Tag centro_de_custo
+    ['SQL Instance Tag'] = sqlInstanceTag, // SQL Instance Tag
     ['Azure Arc VM Source Name by SQL Instance'] = arcInstanceContainerId,  // Container ID associated with the Arc resource
     ['Tags Differ'] = tagsDiffer,  // Add a field to indicate if the tags differ
     ['Compliance Status'] = complianceStatus  // Add a field to indicate the compliance status
@@ -63,7 +63,7 @@ resources
 $result = Search-AzGraph -Query $query
     
 # Project the desired columns
-$projectedResult = $result | Select-Object 'Azure Arc VM Source Name', 'Azure Arc VM Source Name Tag centro_de_custo', 'SQL Instance ID', 'SQL Instance', 'SQL Instance Tag centro_de_custo', 'Azure Arc VM Source Name by SQL Instance', 'Tags Differ', 'Compliance Status'
+$projectedResult = $result | Select-Object 'Azure Arc VM Source Name', 'Azure Arc VM Source Name Tag', 'SQL Instance ID', 'SQL Instance', 'SQL Instance Tag', 'Azure Arc VM Source Name by SQL Instance', 'Tags Differ', 'Compliance Status'
 
 # Filter the projected result based on Compliance Status
 $filteredResult = $projectedResult | Where-Object { $_.'Compliance Status' -eq 'Nao Conformidade' }
@@ -83,7 +83,7 @@ else {
         
         # Use the parameter $tagName to create the tag
         $tag = @{
-            $tagName = $resource.'Azure Arc VM Source Name Tag centro_de_custo' # Use the tag value from the parameter
+            $tagName = $resource.'Azure Arc VM Source Name Tag' # Use the tag value from the parameter
         }
         # Apply the tag to the SQL instance
         Update-AzTag -Tag $tag -ResourceId $id -Operation Merge -Verbose
