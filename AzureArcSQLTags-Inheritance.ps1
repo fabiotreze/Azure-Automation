@@ -18,7 +18,7 @@ Disable-AzContextAutosave -Scope Process | Out-Null
 
 try {
     # Connect to Azure with user-assigned managed identity
-    $AzureContext = (Connect-AzAccount -Identity -AccountId b50f3fb3-bbbd-40b0-9c04-a2f4694102d7).context
+    $AzureContext = (Connect-AzAccount -Identity -AccountId REPLACE_WITH_YOUR_ID).context
     
     # Set and store context with the specified subscription
     $AzureContext = Set-AzContext -SubscriptionName $SubscriptionID -DefaultProfile $AzureContext
